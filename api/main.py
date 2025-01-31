@@ -2,7 +2,10 @@
 Main FastAPI application for the content rating system.
 """
 import os
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends
+from sqlalchemy.orm import Session
+from api.database.session import Base, engine
+from api.database import crud
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -10,6 +13,9 @@ from fastapi.templating import Jinja2Templates
 import uvicorn
 
 from api.routers import rating
+
+# Create database tables
+Base.metadata.create_all(bind=engine)
 
 # Create FastAPI app
 app = FastAPI(

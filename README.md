@@ -1,33 +1,67 @@
 # Content Rating System
 
-A Python-based content rating system that evaluates and scores content resources based on multiple criteria including relevance, authority, engagement, clarity, and impact. The system provides a comprehensive, data-driven approach to content evaluation while maintaining high performance through caching and batch processing capabilities.
+A sophisticated content evaluation platform that combines a FastAPI backend with a Streamlit frontend to provide comprehensive content rating capabilities. The system evaluates content across multiple dimensions while offering high-performance processing through caching and batch operations.
+
+## System Architecture
+
+```
+content-rating-system/
+├── api/                    # FastAPI Backend
+│   ├── main.py            # API entry point
+│   ├── models/            # Data models and schemas
+│   └── routers/           # API endpoints
+├── core/                  # Core Business Logic
+│   ├── rating_calculator.py   # Rating algorithms
+│   ├── metrics_collector.py   # Metrics processing
+│   ├── data_processor.py      # Data validation
+│   └── rating_service.py      # Service orchestration
+├── models/                # Shared data models
+│   └── resource.py        # Resource definitions
+├── streamlit_app/         # Frontend Application
+│   └── app.py            # Streamlit UI
+├── utils/                 # Utilities
+│   └── cache_manager.py   # Caching system
+├── tests/                 # Test Suite
+│   ├── conftest.py       # Test configuration
+│   ├── test_*.py         # Unit tests
+│   └── integration/      # Integration tests
+└── run.py                # Application runner
+```
 
 ## Features
 
-- **Multi-dimensional Rating**: Evaluates content across 5 core criteria
+### Backend (FastAPI)
+- **RESTful API endpoints** for content rating
+- **Batch processing** support for multiple resources
+- **Caching system** for improved performance
+- **Health monitoring** endpoints
+- **Error handling** and validation
+- **CORS support** for cross-origin requests
+- **API documentation** (Swagger/OpenAPI)
+
+### Frontend (Streamlit)
+- **Interactive UI** for content submission
+- **Real-time rating visualization**
+- **Batch upload** capability
+- **Analytics dashboard**
+- **Radar charts** for score visualization
+- **Downloadable reports**
+- **Responsive design**
+
+### Rating System
+- **Multi-dimensional Rating** (100% total):
   - Relevance (25%)
   - Authority (20%)
   - Engagement (20%)
   - Clarity & Usability (15%)
   - Impact & Results (20%)
 
-- **Advanced Metrics Collection**
-  - Text analysis using NLTK
-  - Engagement metrics processing
-  - Authority and impact evaluation
-  - Automated readability scoring
-
-- **Performance Optimization**
-  - In-memory and disk-based caching
-  - Batch processing capabilities
-  - Resource usage monitoring
-  - Configurable cache sizes
-
-- **Data Validation & Processing**
-  - Input validation
-  - Data normalization
-  - Error handling
-  - Consistent data formatting
+### Performance Features
+- In-memory and disk-based caching
+- Batch processing optimization
+- Multi-worker processing
+- Resource monitoring
+- Configurable cache sizes
 
 ## Installation
 
@@ -48,143 +82,140 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-## Project Structure
+## Running the Application
 
-```
-content-rating-system/
-├── core/
-│   ├── rating_calculator.py   # Core rating calculations
-│   ├── metrics_collector.py   # Metrics collection and analysis
-│   ├── data_processor.py      # Data validation and processing
-│   └── rating_service.py      # Main service orchestration
-├── models/
-│   └── resource.py           # Resource data model
-├── utils/
-│   └── cache_manager.py      # Caching functionality
-├── requirements.txt          # Project dependencies
-├── example.py               # Usage example
-└── README.md               # Documentation
+The system can be started using the integrated runner:
+
+```bash
+python run.py
 ```
 
-## Usage
+This will start:
+- FastAPI backend on http://localhost:8000
+- Streamlit frontend on http://localhost:8501
+- API documentation at http://localhost:8000/api/docs
 
-Here's a basic example of how to use the rating system:
+## Development Setup
 
-```python
-from core.rating_service import RatingService
+### Backend Development
+```bash
+# Run FastAPI with auto-reload
+uvicorn api.main:app --reload --port 8000
+```
 
-# Initialize the rating service
-rating_service = RatingService()
+### Frontend Development
+```bash
+# Run Streamlit with auto-reload
+streamlit run streamlit_app/app.py
+```
 
-# Example resource data
-resource_data = {
-    'title': 'Example Article',
-    'content': 'Article content here...',
-    'author': 'John Doe',
-    'url': 'https://example.com/article',
-    'publication_date': '2024-01-30T00:00:00Z',
-    'metadata': {
-        'keywords': ['example', 'article'],
-        'category': 'technology',
-        'language': 'en',
-        'view_count': 1000,
-        'social_shares': 150,
-        # ... other metadata
+## API Documentation
+
+### Key Endpoints
+
+1. Rate Single Content
+```
+POST /api/v1/rate
+Content-Type: application/json
+
+{
+    "title": "Example Content",
+    "content": "Content text...",
+    "author": "Author Name",
+    "url": "https://example.com",
+    "metadata": {
+        "keywords": ["keyword1", "keyword2"],
+        "category": "technology",
+        ...
     }
 }
-
-# Rate the resource
-rated_resource = rating_service.rate_resource(resource_data)
-
-# Access the results
-print(f"Final Score: {rated_resource.final_score}")
-print("Individual Scores:")
-for criterion, score in rated_resource.scores.items():
-    print(f"{criterion}: {score}")
 ```
 
-For more detailed examples, see `example.py`.
+2. Batch Rating
+```
+POST /api/v1/rate-batch
+Content-Type: application/json
 
-## Components
+{
+    "resources": [
+        {
+            "title": "Content 1",
+            ...
+        },
+        {
+            "title": "Content 2",
+            ...
+        }
+    ]
+}
+```
 
-### RatingCalculator
+3. System Statistics
+```
+GET /api/v1/stats
+```
 
-Handles core rating calculations and score computations:
-- Individual criterion scoring
-- Weight application
-- Final score calculation with modifiers
+## Testing
 
-### MetricsCollector
+Run the test suite:
+```bash
+pytest
+```
 
-Collects and analyzes various metrics:
-- Text content analysis
-- Engagement metrics processing
-- Authority metrics evaluation
-- Impact metrics calculation
+Run specific test categories:
+```bash
+pytest tests/unit          # Unit tests
+pytest tests/integration   # Integration tests
+```
 
-### DataProcessor
+## Deployment
 
-Manages data validation and preparation:
-- Input validation
-- Data cleaning
-- Format standardization
-- Error checking
+### Docker Deployment
+```bash
+# Build the image
+docker build -t content-rating-system .
 
-### Resource
+# Run the container
+docker run -p 8000:8000 -p 8501:8501 content-rating-system
+```
 
-Data model representing content resources:
-- Content metadata
-- Rating scores
-- Caching information
-- Serialization methods
-
-### CacheManager
-
-Handles caching operations:
-- In-memory caching
-- Disk-based persistence
-- Cache invalidation
-- Size management
-
-### RatingService
-
-Main service orchestrating the rating process:
-- Component coordination
-- Process management
-- Error handling
-- Result caching
-
-## Performance Considerations
-
-- Caching is enabled by default with a 100MB limit
-- Batch processing is available for multiple resources
-- Cache invalidation occurs after 24 hours
-- Memory usage is monitored and managed
-
-## Error Handling
-
-The system includes comprehensive error handling:
-- Input validation errors
-- Processing errors
-- Cache-related errors
-- Resource access errors
-
-## Extending the System
-
-To add new rating criteria or modify existing ones:
-
-1. Update the `WEIGHTS` dictionary in `RatingCalculator`
-2. Add corresponding calculation methods
-3. Modify the `_calculate_rating` method in `RatingService`
-4. Update the resource model if needed
+### Environment Variables
+- `PORT`: API port (default: 8000)
+- `STREAMLIT_PORT`: Frontend port (default: 8501)
+- `CACHE_SIZE`: Maximum cache size in MB (default: 100)
+- `WORKERS`: Number of API workers (default: 4)
 
 ## Contributing
 
 1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
+2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit changes (`git commit -m 'Add AmazingFeature'`)
+4. Push to branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## Performance Optimization
+
+### Caching Strategy
+- Default cache size: 100MB
+- Cache invalidation: 24 hours
+- Memory monitoring
+- Disk persistence
+
+### Batch Processing
+- Concurrent processing
+- Memory-efficient chunking
+- Progress tracking
+- Error handling with partial success
+
+## Error Handling
+
+The system implements comprehensive error handling:
+- Input validation
+- Processing errors
+- Cache management
+- Resource access
+- API endpoint errors
+- Batch processing failures
 
 ## License
 

@@ -15,7 +15,9 @@ class Resource:
         url: str,
         publication_date: str,
         metadata: Dict[str, any],
-        resource_id: Optional[str] = None
+        resource_id: Optional[str] = None,
+        raw_content: Optional[str] = None,
+        file_type: Optional[str] = None
     ):
         """
         Initialize a resource.
@@ -35,6 +37,8 @@ class Resource:
         self.url = url
         self.publication_date = publication_date
         self.metadata = metadata
+        self.raw_content = raw_content
+        self.file_type = file_type
         self.resource_id = resource_id or self._generate_id()
         
         # Rating related attributes
@@ -72,6 +76,8 @@ class Resource:
             'url': self.url,
             'publication_date': self.publication_date,
             'metadata': self.metadata,
+            'raw_content': self.raw_content,
+            'file_type': self.file_type,
             'scores': self.scores,
             'final_score': self.final_score,
             'last_rated': self.last_rated.isoformat() if self.last_rated else None,
@@ -97,7 +103,9 @@ class Resource:
             url=data['url'],
             publication_date=data['publication_date'],
             metadata=data['metadata'],
-            resource_id=data.get('resource_id')
+            resource_id=data.get('resource_id'),
+            raw_content=data.get('raw_content'),
+            file_type=data.get('file_type')
         )
         
         # Add rating data if present

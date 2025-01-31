@@ -21,15 +21,18 @@ class Metadata(BaseModel):
     conversion_rate: float = Field(0.0, description="Conversion rate")
     user_satisfaction: float = Field(0.0, description="User satisfaction score (0-10)")
     review_count: int = Field(0, description="Number of reviews")
+    file_type: Optional[str] = Field(None, description="Type of file (pdf, html, docx, txt, md)")
 
 class ContentRequest(BaseModel):
     """Schema for content rating request."""
     title: str = Field(..., description="Content title")
-    content: str = Field(..., description="Main content text")
+    content: str = Field(..., description="Content text (may be base64 encoded for binary formats)")
     author: str = Field(..., description="Content author")
     url: HttpUrl = Field(..., description="Content URL")
     publication_date: datetime = Field(..., description="Publication date")
     metadata: Metadata = Field(..., description="Content metadata")
+    file_type: Optional[str] = Field(None, description="Type of file (pdf, html, docx, txt, md)")
+    raw_content: Optional[str] = Field(None, description="Original raw content before processing")
 
 class ScoreResponse(BaseModel):
     """Schema for individual criterion scores."""

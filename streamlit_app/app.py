@@ -4,6 +4,7 @@ Main Streamlit application for the content rating system.
 import streamlit as st
 import requests
 import json
+import base64
 from datetime import datetime
 import plotly.graph_objects as go
 import pandas as pd
@@ -39,8 +40,18 @@ st.markdown("""
         border-radius: 5px;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
-    .sidebar .sidebar-content {
+    .upload-section {
+        border: 2px dashed #ccc;
+        padding: 20px;
+        border-radius: 10px;
+        text-align: center;
+        margin-bottom: 20px;
+    }
+    .file-info {
         background-color: #f8f9fa;
+        padding: 10px;
+        border-radius: 5px;
+        margin-top: 10px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -52,8 +63,8 @@ def create_radar_chart(scores):
     """Create a radar chart for rating scores."""
     categories = list(scores.keys())
     values = list(scores.values())
-    values.append(values[0])  # Complete the polygon
-    categories.append(categories[0])  # Complete the polygon
+    values.append(values[0])
+    categories.append(categories[0])
     
     fig = go.Figure(data=go.Scatterpolar(
         r=values,
@@ -88,127 +99,247 @@ def display_metrics(rating_response):
     with col3:
         st.metric("Resource ID", rating_response['resource_id'][:8])
 
+def get_file_content(uploaded_file):
+    """Process uploaded file and return content in appropriate format."""
+    file_type = None
+    content = None
+    mime_type = uploaded_file.type
+
+    if mime_type == "application/pdf":
+        file_type = "pdf"
+        content = base64.b64encode(uploaded_file.read()).decode('utf-8')
+        content = f"data:application/pdf;base64,{content}"
+    elif mime_type == "text/html":
+        file_type = "html"
+        content = uploaded_file.read().decode('utf-8')
+    elif mime_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+        file_type = "docx"
+        content = base64.b64encode(uploaded_file.read()).decode('utf-8')
+        content = f"data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,{content}"
+    elif mime_type == "text/markdown":
+        file_type = "md"
+        content = uploaded_file.read().decode('utf-8')
+    else:
+        # Default to txt for other types
+        file_type = "txt"
+        content = uploaded_file.read().decode('utf-8')
+
+    return content, file_type
+
 def main():
     """Main application function."""
     st.title("Content Rating System")
     
     # Sidebar
     st.sidebar.header("Navigation")
-    page = st.sidebar.radio(
-        "Select a page",
-        ["Single Rating", "Batch Rating", "Analytics"]
-    )
+    page = st.sidebar.radio("Select a page", ["Single Rating", "Batch Rating"])
     
     if page == "Single Rating":
         st.header("Rate Single Content")
         
-        with st.form("rating_form"):
-            title = st.text_input("Content Title")
-            content = st.text_area("Content")
-            author = st.text_input("Author")
-            url = st.text_input("URL")
-            
-            # Metadata inputs
-            st.subheader("Metadata")
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                keywords = st.text_input("Keywords (comma-separated)")
-                category = st.text_input("Category")
-                view_count = st.number_input("View Count", min_value=0)
-                social_shares = st.number_input("Social Shares", min_value=0)
-            
-            with col2:
-                author_score = st.slider("Author Expertise (0-10)", 0.0, 10.0, 5.0)
-                domain_authority = st.slider("Domain Authority (0-100)", 0.0, 100.0, 50.0)
-                user_satisfaction = st.slider("User Satisfaction (0-10)", 0.0, 10.0, 5.0)
-                
-            submitted = st.form_submit_button("Rate Content")
-            
-            if submitted:
-                try:
-                    # Prepare request data
-                    data = {
-                        "title": title,
-                        "content": content,
-                        "author": author,
-                        "url": url,
-                        "publication_date": datetime.now().isoformat(),
-                        "metadata": {
-                            "keywords": [k.strip() for k in keywords.split(",") if k.strip()],
-                            "category": category,
-                            "language": "en",
-                            "view_count": view_count,
-                            "avg_interaction_time": 0,
-                            "social_shares": social_shares,
-                            "total_interactions": view_count,
-                            "citations": 0,
-                            "author_credentials_score": author_score,
-                            "domain_authority": domain_authority,
-                            "positive_outcomes": 0,
-                            "conversion_rate": 0.0,
-                            "user_satisfaction": user_satisfaction,
-                            "review_count": 0
-                        }
-                    }
-                    
-                    # Make API request
-                    response = requests.post(f"{API_URL}/rate", json=data)
-                    response.raise_for_status()
-                    rating = response.json()
-                    
-                    # Display results
-                    st.success("Content rated successfully!")
-                    display_metrics(rating)
-                    
-                    # Display radar chart
-                    fig = create_radar_chart(rating['scores'])
-                    st.plotly_chart(fig)
-                    
-                    # Display detailed results
-                    with st.expander("View Detailed Results"):
-                        st.json(rating)
-                        
-                except Exception as e:
-                    st.error(f"Error: {str(e)}")
-    
-    elif page == "Batch Rating":
-        st.header("Batch Content Rating")
+        tab1, tab2 = st.tabs(["📝 Manual Entry", "📄 File Upload"])
         
-        uploaded_file = st.file_uploader(
-            "Upload JSON file with content items",
-            type=['json'],
-            help="File should contain an array of content items"
+        with tab1:
+            with st.form("manual_rating_form"):
+                title = st.text_input("Content Title", key="manual_title")
+                content = st.text_area("Content", key="manual_content")
+                author = st.text_input("Author", key="manual_author")
+                url = st.text_input("URL", key="manual_url")
+                
+                with st.expander("Metadata", expanded=False):
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        keywords = st.text_input("Keywords (comma-separated)", key="manual_keywords")
+                        category = st.text_input("Category", key="manual_category")
+                    
+                    with col2:
+                        author_score = st.slider("Author Expertise (0-10)", 0.0, 10.0, 5.0, key="manual_author_score")
+                        domain_authority = st.slider("Domain Authority (0-100)", 0.0, 100.0, 50.0, key="manual_domain")
+                
+                submitted = st.form_submit_button("Rate Content")
+                
+                if submitted:
+                    if not title or not content:
+                        st.error("Title and content are required!")
+                    else:
+                        try:
+                            data = {
+                                "title": title,
+                                "content": content,
+                                "author": author,
+                                "url": url or f"manual://{title.lower().replace(' ', '-')}",
+                                "publication_date": datetime.now().isoformat(),
+                                "metadata": {
+                                    "keywords": [k.strip() for k in keywords.split(",") if k.strip()],
+                                    "category": category,
+                                    "language": "en",
+                                    "author_credentials_score": author_score,
+                                    "domain_authority": domain_authority
+                                }
+                            }
+                            
+                            with st.spinner("Rating content..."):
+                                response = requests.post(f"{API_URL}/rate", json=data)
+                                response.raise_for_status()
+                                rating = response.json()
+                                
+                                st.success("Content rated successfully!")
+                                display_metrics(rating)
+                                
+                                fig = create_radar_chart(rating['scores'])
+                                st.plotly_chart(fig)
+                                
+                                with st.expander("View Full Results"):
+                                    st.json(rating)
+                                    
+                        except Exception as e:
+                            st.error(f"Error: {str(e)}")
+        
+        with tab2:
+            st.info("📁 Supported formats: PDF, HTML, DOCX, Markdown, and Text files")
+            
+            uploaded_file = st.file_uploader(
+                "Upload a file to rate",
+                type=['pdf', 'html', 'docx', 'md', 'txt'],
+                key="single_upload"
+            )
+            
+            if uploaded_file:
+                with st.form("file_rating_form"):
+                    st.write("### File Information")
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        st.markdown(f"""
+                        - **Name**: {uploaded_file.name}
+                        - **Type**: {uploaded_file.type}
+                        - **Size**: {uploaded_file.size / 1024:.1f} KB
+                        """)
+                        
+                        title = st.text_input("Title", value=uploaded_file.name)
+                        author = st.text_input("Author")
+                        url = st.text_input("URL")
+                    
+                    with col2:
+                        with st.expander("Additional Metadata", expanded=True):
+                            keywords = st.text_input("Keywords (comma-separated)")
+                            category = st.text_input("Category")
+                            author_score = st.slider("Author Expertise (0-10)", 0.0, 10.0, 5.0)
+                            domain_authority = st.slider("Domain Authority (0-100)", 0.0, 100.0, 50.0)
+                    
+                    submit_file = st.form_submit_button("Process and Rate")
+                    
+                    if submit_file:
+                        try:
+                            content, file_type = get_file_content(uploaded_file)
+                            
+                            data = {
+                                "title": title,
+                                "content": content,
+                                "author": author,
+                                "url": url or f"file://{uploaded_file.name}",
+                                "publication_date": datetime.now().isoformat(),
+                                "file_type": file_type,
+                                "metadata": {
+                                    "keywords": [k.strip() for k in keywords.split(",") if k.strip()],
+                                    "category": category,
+                                    "language": "en",
+                                    "author_credentials_score": author_score,
+                                    "domain_authority": domain_authority,
+                                    "file_type": file_type
+                                }
+                            }
+                            
+                            with st.spinner("Processing and rating content..."):
+                                response = requests.post(f"{API_URL}/rate", json=data)
+                                response.raise_for_status()
+                                rating = response.json()
+                                
+                                st.success(f"Successfully processed and rated {uploaded_file.name}")
+                                display_metrics(rating)
+                                
+                                fig = create_radar_chart(rating['scores'])
+                                st.plotly_chart(fig)
+                                
+                                with st.expander("View Full Results"):
+                                    st.json(rating)
+                                    
+                        except Exception as e:
+                            st.error(f"Error processing file: {str(e)}")
+    
+    else:  # Batch Rating page
+        st.header("Batch Content Rating")
+        st.info("📦 Upload multiple files to rate them in batch")
+        
+        uploaded_files = st.file_uploader(
+            "Upload files",
+            type=['pdf', 'html', 'docx', 'md', 'txt'],
+            accept_multiple_files=True,
+            help="Select multiple files to process in batch"
         )
         
-        if uploaded_file:
-            try:
-                contents = json.load(uploaded_file)
-                st.info(f"Loaded {len(contents)} items")
-                
-                if st.button("Process Batch"):
-                    with st.spinner("Processing batch..."):
+        if uploaded_files:
+            st.write(f"### {len(uploaded_files)} Files Selected")
+            
+            # Show file list
+            with st.expander("View Files", expanded=True):
+                df = pd.DataFrame([
+                    {
+                        "Name": f.name,
+                        "Type": f.type,
+                        "Size (KB)": f"{f.size/1024:.1f}"
+                    } for f in uploaded_files
+                ])
+                st.dataframe(df)
+            
+            if st.button("Process Batch"):
+                try:
+                    with st.spinner(f"Processing {len(uploaded_files)} files..."):
+                        progress = st.progress(0)
+                        
+                        resources = []
+                        for i, file in enumerate(uploaded_files):
+                            content, file_type = get_file_content(file)
+                            resources.append({
+                                "title": file.name,
+                                "content": content,
+                                "author": "Unknown",
+                                "url": f"file://{file.name}",
+                                "publication_date": datetime.now().isoformat(),
+                                "file_type": file_type,
+                                "metadata": {
+                                    "keywords": [],
+                                    "category": "Unknown",
+                                    "language": "en",
+                                    "author_credentials_score": 5.0,
+                                    "domain_authority": 50.0,
+                                    "file_type": file_type
+                                }
+                            })
+                            progress.progress((i + 1) / len(uploaded_files))
+                        
                         response = requests.post(
                             f"{API_URL}/rate-batch",
-                            json={"resources": contents}
+                            json={"resources": resources}
                         )
                         response.raise_for_status()
                         results = response.json()
                         
-                        st.success(f"Processed {results['total_processed']} items")
+                        st.success(f"Successfully processed {len(results['results'])} files")
                         
-                        # Display results table
-                        df = pd.DataFrame([
+                        # Display results
+                        results_df = pd.DataFrame([
                             {
                                 'Title': r['title'],
-                                'Final Score': r['final_score'],
-                                'Resource ID': r['resource_id'][:8]
-                            }
-                            for r in results['results']
+                                'Score': f"{r['final_score']:.2f}/10",
+                                'File Type': r.get('metadata', {}).get('file_type', 'Unknown'),
+                                'ID': r['resource_id'][:8]
+                            } for r in results['results']
                         ])
-                        st.dataframe(df)
+                        st.dataframe(results_df)
                         
-                        # Download results
+                        # Download results button
                         st.download_button(
                             "Download Results",
                             data=json.dumps(results, indent=2),
@@ -216,51 +347,8 @@ def main():
                             mime="application/json"
                         )
                         
-            except Exception as e:
-                st.error(f"Error: {str(e)}")
-    
-    else:  # Analytics page
-        st.header("System Analytics")
-        
-        try:
-            response = requests.get(f"{API_URL}/stats")
-            response.raise_for_status()
-            stats = response.json()
-            
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                st.metric("Total Ratings", stats['total_ratings'])
-            
-            with col2:
-                st.metric(
-                    "Average Processing Time",
-                    f"{stats['avg_processing_time']:.2f}s"
-                )
-            
-            with col3:
-                st.metric(
-                    "Cache Size",
-                    f"{stats['cache_stats']['current_size_bytes'] / 1024:.1f}KB"
-                )
-            
-            # Cache usage chart
-            cache_data = stats['cache_stats']
-            fig = go.Figure(data=[
-                go.Pie(
-                    labels=['Used', 'Available'],
-                    values=[
-                        cache_data['current_size_bytes'],
-                        cache_data['max_size_bytes'] - cache_data['current_size_bytes']
-                    ],
-                    hole=.3
-                )
-            ])
-            fig.update_layout(title="Cache Usage")
-            st.plotly_chart(fig)
-            
-        except Exception as e:
-            st.error(f"Error fetching analytics: {str(e)}")
+                except Exception as e:
+                    st.error(f"Error processing batch: {str(e)}")
 
 if __name__ == "__main__":
     main()
